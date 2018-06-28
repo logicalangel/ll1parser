@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>LL(1) Parser</title>
+    <!--Import Google Icon Font-->
+    <!--    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">-->
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet" href="css/materialize.min.css" media="screen,projection" />
+
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body ng-app="app">
+    <nav class="blue darken-4">
+        <div class="nav-wrapper">
+            <a href="#" class="brand-logo center">LL(1) Parser</a>
+        </div>
+    </nav>
+    <div class="container" ng-controller="main">
+        <br>
+        <div class="row">
+            <div class="card">
+                <div class="card-content center">
+                    <div class="input-field col s12">
+                        <textarea id="code" rows="8" ng-model="code" class="materialize-textarea"></textarea>
+                        <label for="code">Your code is here!</label>
+                    </div>
+                    <div class="input-field col s12">
+                        <textarea id="grammer" rows="8" ng-model="grammer" class="materialize-textarea"></textarea>
+                        <label for="grammer">Your grammer is here!</label>
+                    </div>
+                    <button class="waves-effect waves-light btn green" ng-click="parse()">Parse now!</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" ng-show="p_table">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Words</h4>
+                    <h5>Epsilons: <span class="btn" style="margin-right: 5px;" ng-repeat="x in eps">{{x}}</span></h5>
+                    <h5>Terminals: <span class="btn" style="margin-right: 5px;" ng-repeat="x in Terminal">{{x}}</span></h5>
+                    <h5>NonTerminals: <span class="btn" style="margin-right: 5px;" ng-repeat="x in nonTerminal">{{x}}</span></h5>
+                </div>
+            </div>
+        </div>
+        <div class="row" ng-show="p_table">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Roles</h4>
+                    <ol>
+                        <li ng-repeat="x in roles">{{x}}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="row" ng-show="p_table">
+            <div class="card">
+                <div class="card-content">
+                    <h4>First Table</h4>
+                    <ol>
+                        <li ng-repeat="x in first">{{x}}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="row" ng-show="p_table">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Follow Table</h4>
+                    <ol>
+                        <li ng-repeat="x in follow">{{x}}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="row" ng-show="p_table">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Parsing Table</h4>
+                    <table class="centered">
+                        <thead>
+                            <tr>
+                                <th>/</th>
+                                <th ng-repeat="col in Terminal">{{col}}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="row in nonTerminal">
+                                <td>{{row}}</td>
+                                <td ng-repeat="col in Terminal">{{table[$parent.$index][$index]}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="row" ng-show="done">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Result</h4>
+                    <p>{{result}}</p>
+                    <ol>
+                        <li ng-repeat="r in result track by $index">{{ roles[r-1]}}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="card">
+                <div class="card-content">
+                    <h4>Console</h4>
+                    <!--                    <p ng-repeat="c in console">{{c}}</p>-->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="js/jquery-3.3.1.slim.min.js"></script>
+    <script type="text/javascript" src="js/materialize.min.js"></script>
+    <script src="js/angular.min.js"></script>
+    <script type="text/javascript">
+        var app = angular.module('app', []);
+        app.controller('main', function($scope) {
+            M.textareaAutoResize($('#code'));
+
+            $scope.code = "";
+            $scope.split_g = [];
+            $scope.done = false;
+            //$scope.grammer = "Program  → Statement;Statement → if Expression then Block | while Expression do Block | Expression;Expression → Term => identifier | isZero? Term | not Expression | ++ identifier | -- identifier;Term → identifier | constant;Block → { Statements };Statements → Statement Statements | ε";
+            $scope.grammer = "S → F;S → ( S + F );F → a";
+            //$scope.code = "while isZero? identifier do { if not isZero? identifier then { constant => identifier } ; }";
+            $scope.code = "( a + a )";
+
+            $scope.makeMatrix = function() {
+                $scope.split_g = $scope.grammer.split(";");
+
+                //cut multiple rows
+                for (let i = 0; i < $scope.split_g.length; i++) {
+                    let split_l = $scope.split_g[i].split("→");
+                    let trms = split_l[1].split("|");
+                    for (let j = 0; j < trms.length; j++) {
+                        $scope.roles.push({
+                            key: split_l[0].trim(),
+                            value: trms[j].trim()
+                        });
+                    }
+                }
+
+                //indefy first word
+                for (let i = 0; i < $scope.roles.length; i++) {
+                    let split_l2 = $scope.roles[i].value.split(" ");
+                    $scope.first.push({
+                        key: $scope.roles[i].key,
+                        value: [split_l2[0]]
+                    });
+                }
+
+                //remove dublicate
+                for (let i = 0; i < $scope.first.length; i++) {
+                    for (let j = 0; j < $scope.first.length; j++) {
+                        if ($scope.first[i].key == $scope.first[j].key && $scope.first[i].value != $scope.first[j].value) {
+                            $scope.first[i].value = [...$scope.first[i].value, ...$scope.first[j].value];
+                            $scope.first.splice(j, 1);
+                            i--;
+                        }
+                    }
+                }
+
+                for (let i = 0; i < $scope.roles.length; i++) {
+                    if ($scope.roles[i].value == "ε") {
+                        $scope.eps.push($scope.roles[i].key);
+                    }
+                }
+
+                //get inside values
+                let epss = [];
+                for (let i = 0; i < $scope.first.length; i++) {
+                    for (let j = 0; j < $scope.first[i].value.length; j++) {
+                        for (let k = 0; k < $scope.first.length; k++) {
+                            if ($scope.first[i].value[j] == $scope.first[k].key) {
+                                $scope.first[i].value.splice(j, 1);
+                                $scope.first[i].value = [...$scope.first[i].value, ...$scope.first[k].value];
+                            }
+                        }
+                    }
+                }
+
+                //detect terminals and non terminals
+                $scope.nonTerminal = [];
+                $scope.Terminal = [];
+                $scope.first.forEach(function(item) {
+                    if ($scope.nonTerminal.indexOf(item.key) == -1) {
+                        $scope.nonTerminal.push(item.key);
+                    }
+                });
+                $scope.split_g = $scope.grammer.split(";");
+                for (let i = 0; i < $scope.split_g.length; i++) {
+                    let split_l = $scope.split_g[i].split("→");
+                    let split_l2 = split_l[1].split(" ");
+                    split_l2.forEach(function(item) {
+                        let isdub = false;
+
+                        if (item.trim() == "")
+                            isdub = true;
+
+                        $scope.nonTerminal.forEach(function(subed) {
+                            if (subed == item) isdub = true;
+                        });
+
+                        $scope.Terminal.forEach(function(subed) {
+                            if (subed == item) isdub = true;
+                        });
+                        if (!isdub && item != "|") {
+                            if (item == "ε") {
+                                $scope.Terminal.push("$")
+                            } else {
+                                $scope.Terminal.push(item)
+                            }
+                        }
+                    });
+                }
+
+                for (let i = 0; i < $scope.nonTerminal.length; i++) {
+                    for (let j = 0; j < $scope.roles.length; j++) {
+                        let splited = $scope.roles[j].value.split(" ");
+                        for (let k = 0; k < splited.length; k++) {
+                            if (splited[k] == $scope.nonTerminal[i]) {
+                                if (splited[k + 1] != "" && splited[k + 1] != undefined) {
+                                    if ($scope.Terminal.indexOf(splited[k + 1]) != -1) {
+                                        $scope.follow.push({
+                                            key: $scope.nonTerminal[i],
+                                            value: [splited[k + 1]]
+                                        });
+                                    } else {
+                                        for (let y = 0; y < $scope.first.length; y++) {
+                                            if ($scope.first[y].key == splited[k + 1]) {
+                                                $scope.follow.push({
+                                                    key: $scope.nonTerminal[i],
+                                                    value: $scope.first[y].value
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                if (splited[k + 1] == undefined || $scope.eps.indexOf(splited[k + 1]) != -1) {
+                                    $scope.follow.push({
+                                        key: $scope.nonTerminal[i],
+                                        value: [$scope.roles[j].key]
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (let i = 0; i < $scope.follow.length; i++) {
+                    for (let j = 0; j < $scope.follow.length; j++) {
+                        if ($scope.follow[i].key == $scope.follow[j].key && $scope.follow[i].value != $scope.follow[j].value) {
+                            $scope.follow[i].value = [...$scope.follow[i].value, ...$scope.follow[j].value];
+                            $scope.follow.splice(j, 1);
+                            //i--;
+                        }
+                    }
+                }
+
+                for (let i = 0; i < $scope.follow.length; i++) {
+                    for (let j = 0; j < $scope.follow[i].value.length; j++) {
+                        if ($scope.nonTerminal.indexOf($scope.follow[i].value[j]) != -1) {
+                            if ($scope.follow[i].value[j] == $scope.follow[i].key) {
+                                $scope.follow[i].value.splice(j, 1);
+                            } else {
+                                //add follow to this
+
+                            }
+                        }
+                    }
+                }
+
+                console.log($scope.follow);
+
+                //making teble
+                $scope.table = [...Array($scope.nonTerminal.length)].map(e => Array($scope.Terminal.length).fill("NAN"));
+                for (let i = 0; i < $scope.roles.length; i++) {
+                    let key = $scope.roles[i].key;
+                    let trms = $scope.roles[i].value;
+
+                    let split_l2 = trms.split(" ");
+                    let W_right = split_l2[0];
+                    let isTerminal = true;
+                    for (let k = 0; k < $scope.nonTerminal.length; k++) {
+                        if (W_right == $scope.nonTerminal[k]) isTerminal = false;
+                    }
+                    if (isTerminal) {
+                        if (W_right == "ε") {
+                            //$scope.table[$scope.nonTerminal.indexOf(key)][$scope.Terminal.indexOf("$")] = i + 1;
+                            for (let u = 0; u < $scope.follow.length; u++) {
+                                if ($scope.follow[u].key == key) {
+                                    $scope.follow[u].value.forEach(function(f) {
+                                        if ($scope.nonTerminal.indexOf(f)) {
+                                            $scope.table[$scope.nonTerminal.indexOf(key)][$scope.Terminal.indexOf(f)] = i + 1;
+                                        } else {
+                                            for (let g = 0; g < $scope.follow.length; g++) {
+                                                if ($scope.follow[g].key == f) {
+                                                    for (let o = 0; o < $scope.follow[g].value.length; o++) {
+                                                        if ($scope.Terminal.indexOf($scope.follow[g].value[o]) != -1) {
+                                                            $scope.follow[g].value.push($scope.follow[g].value[o]);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        } else {
+                            $scope.table[$scope.nonTerminal.indexOf(key)][$scope.Terminal.indexOf(W_right)] = i + 1;
+                        }
+                    } else {
+                        $scope.first.forEach(function(item) {
+                            if (item.key == W_right) {
+                                item.value.forEach(function(val) {
+                                    $scope.table[$scope.nonTerminal.indexOf(key)][$scope.Terminal.indexOf(val)] = i + 1;
+                                });
+                            }
+                        });
+                    }
+
+                };
+            }
+            $scope.makeResult = function() {
+                $scope.split_p = $scope.code.split(" ");
+                $scope.stack = ["$"];
+                $scope.split_g = $scope.grammer.split(";");
+                $scope.stack.push($scope.split_g[0].split("→")[0].trim());
+                let error = false;
+                for (let i = 0; i < $scope.split_p.length;) {
+                    if (!error) {
+                        console.log(i + ": stack= " + $scope.stack);
+                        let word = $scope.split_p[i];
+                        let top_stack = $scope.stack.pop();
+                        console.log("word: " + word + " : " + $scope.Terminal.indexOf(word.trim()) + "\nTOStack: " + top_stack + " : " + $scope.nonTerminal.indexOf(top_stack) + "\n");
+
+                        if ($scope.Terminal.indexOf(top_stack) < 0) {
+                            //nonTerminal
+                            if (top_stack == "ε") {
+                                break;
+                            }
+                            let rule = $scope.table[$scope.nonTerminal.indexOf(top_stack)][$scope.Terminal.indexOf(word)];
+                            if (rule != "NAN")
+                                rule--;
+                            else {
+                                M.toast({
+                                    html: 'Error!'
+                                });
+                                error = true;
+                                break;
+                            }
+                            $scope.result.push(rule + 1);
+                            let get_rule = $scope.roles[rule];
+                            let terms = get_rule.value.split(" ");
+                            terms.reverse().forEach(function(term) {
+                                if (term.trim().length != 0) {
+                                    $scope.stack.push(term);
+                                }
+                                if (term.trim() == "ε") {
+                                    return;
+                                }
+                            });
+
+                        } else {
+                            //Terminal
+                            if (top_stack == word) {
+                                i++;
+                                console.log(top_stack + " : " + word);
+                                if (top_stack == "$") {
+                                    M.toast({
+                                        html: 'Done!'
+                                    });
+                                    $scope.done = true;
+                                } else {
+                                    console.log("returned");
+                                }
+                            } else {
+                                M.toast({
+                                    html: 'Error!'
+                                });
+                                error = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                return !error;
+            };
+
+            $scope.parse = function() {
+                M.toast({
+                    html: 'Thinking...'
+                });
+
+                $scope.first = [];
+                $scope.follow = [];
+                $scope.console = [];
+                $scope.split_g = [];
+                $scope.result = [];
+                $scope.roles = [];
+                $scope.eps = [];
+                $scope.makeMatrix();
+                $scope.p_table = true;
+                M.toast({
+                    html: 'Parse Matris build Done...'
+                })
+
+                if ($scope.makeResult()) {
+                    M.toast({
+                        html: 'Finish!'
+                    });
+                    $scope.done = true;
+                }
+                console.log($scope.result);
+            };
+
+        });
+
+    </script>
+</body>
+
+</html>
