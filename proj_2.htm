@@ -128,10 +128,10 @@
             $scope.code = "";
             $scope.split_g = [];
             $scope.done = false;
-            //$scope.grammer = "Program  → Statement;Statement → if Expression then Block | while Expression do Block | Expression;Expression → Term => identifier | isZero? Term | not Expression | ++ identifier | -- identifier;Term → identifier | constant;Block → { Statements };Statements → Statement Statements | ε";
-            $scope.grammer = "S → F;S → ( S + F );F → a";
-            //$scope.code = "while isZero? identifier do { if not isZero? identifier then { constant => identifier } ; }";
-            $scope.code = "( a + a )";
+            $scope.grammer = "Program  → Statement;Statement → if Expression then Block | while Expression do Block | Expression;Expression → Term => identifier | isZero? Term | not Expression | ++ identifier | -- identifier;Term → identifier | constant;Block → { Statements };Statements → Statement Statements | ε";
+            //$scope.grammer = "S → F;S → ( S + F );F → a";
+            $scope.code = "while isZero? identifier do { if not isZero? identifier then { constant => identifier } ; }";
+            //$scope.code = "( a + a )";
 
             $scope.makeMatrix = function() {
                 $scope.split_g = $scope.grammer.split(";");
